@@ -206,10 +206,10 @@ case class LazyVersionCachingPersistentStore[K, Category, Serialized](
     storageId: K,
     version: OffsetDateTime,
     category: Category,
-    v: V): Unit = {
+    v: Option[V]): Unit = {
 
     maybePurgeCachedVersions()
-    versionedValueCache.put((storageId, version), Some(v))
+    versionedValueCache.put((storageId, version), v)
     val cached = versionCache.getOrElse((category, storageId), Nil) // linter:ignore UndesirableTypeInference
     versionCache.put((category, storageId), (version +: cached).distinct)
   }
@@ -293,7 +293,7 @@ case class LazyVersionCachingPersistentStore[K, Category, Serialized](
           async { // linter:ignore UnnecessaryElseBranch
             await(store.store(id, v))
             val version = ir.version(v)
-            updateCachedVersions(storageId, version, category, v)
+            updateCachedVersions(storageId, version, category, Some(v))
             Done
           }
         }
@@ -310,7 +310,7 @@ case class LazyVersionCachingPersistentStore[K, Category, Serialized](
       withVersionedValueCache {
         async { // linter:ignore UnnecessaryElseBranch
           await(store.store(id, v, version))
-          updateCachedVersions(storageId, version, category, v)
+          updateCachedVersions(storageId, version, category, Some(v))
           Done
         }
       }
